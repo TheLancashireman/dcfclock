@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with dcfclock.  If not, see <http://www.gnu.org/licenses/>.
  *
- * $Id$
+ * $Id: dcfclock.ino 4 2016-11-24 04:34:27Z dave $
  *
  * dcfclock is an Arduino sketch, written for an Arduino Nano
  *
@@ -111,6 +111,8 @@ struct task_s
 #define DigPin_0		10		// PB2
 #define DigPin_1		11		// PB3
 #define DigPin_2		12		// PB4
+#define DigPin_3		16		// PC2
+#define DigPin_4		17		// PC3
 
 /* Timed processing
 */
@@ -350,13 +352,18 @@ void DcfSample(task_t *dcfTask, unsigned long elapsed)
 
 			dcfState = 1;
 			dcfWidth = 0;
-			dcfWriteTime();
+			if ( dcfDow != 0 )
+			{
+				dcfWriteTime();
+			}
 			dcfBitCount = 0;
 			dcfSecond = 0;
 			for ( i = 0; i < 8; i++ )
 			{
 				dcfShiftReg[i] = 0;
 			}
+			SetDigitBit(4, 3, 1);
+			SetDigitBit(4, 4, 1);
 		}
 	}
 	else
@@ -499,6 +506,9 @@ const unsigned char digit_to_7seg[16] =
 const unsigned char segpins[8] =
 {	SegPin_a, SegPin_b, SegPin_c, SegPin_d, SegPin_e, SegPin_f, SegPin_g, SegPin_h	};
 
+const unsigned char digpins[5] =
+{	DigPin_0, DigPin_1, DigPin_2, DigPin_3, DigPin_4	};
+
 void DisplayDriveInit(task_t *displayDriveTask)
 {
 	pinMode(SegPin_a, OUTPUT);			// Sets the segment pins as output
@@ -512,6 +522,8 @@ void DisplayDriveInit(task_t *displayDriveTask)
 	pinMode(DigPin_0, OUTPUT);
 	pinMode(DigPin_1, OUTPUT);
 	pinMode(DigPin_2, OUTPUT);
+	pinMode(DigPin_3, OUTPUT);
+	pinMode(DigPin_4, OUTPUT);
 
 	digitalWrite(SegPin_a, LOW);		// Drive the segment pins low (LED off)
 	digitalWrite(SegPin_b, LOW);
@@ -523,9 +535,11 @@ void DisplayDriveInit(task_t *displayDriveTask)
 	digitalWrite(SegPin_h, LOW);
 	digitalWrite(SegPin_h, LOW);
 	digitalWrite(SegPin_h, LOW);
-	digitalWrite(DigPin_0, LOW);
+	digitalWrite(DigPin_0, LOW);		// Drive the digit pins low (LEDs off)
 	digitalWrite(DigPin_1, LOW);
 	digitalWrite(DigPin_2, LOW);
+	digitalWrite(DigPin_3, LOW);
+	digitalWrite(DigPin_4, LOW);
 
 	digit7seg[0] = seg_g|seg_h;
 	digit7seg[1] = seg_g|seg_h;
@@ -539,9 +553,7 @@ void DisplayDrive(task_t *displayDriveTask, unsigned long elapsed)
 {
 	unsigned segvals = digit7seg[dCount];
 
-	digitalWrite(DigPin_0, HIGH);
-	digitalWrite(DigPin_1, HIGH);
-	digitalWrite(DigPin_2, HIGH);
+	digitalWrite(digpins[dCount], LOW);
 	digitalWrite(SegPin_a, ( segvals & 0x01 ) ? HIGH : LOW);
 	digitalWrite(SegPin_b, ( segvals & 0x02 ) ? HIGH : LOW);
 	digitalWrite(SegPin_c, ( segvals & 0x04 ) ? HIGH : LOW);
@@ -550,16 +562,13 @@ void DisplayDrive(task_t *displayDriveTask, unsigned long elapsed)
 	digitalWrite(SegPin_f, ( segvals & 0x20 ) ? HIGH : LOW);
 	digitalWrite(SegPin_g, ( segvals & 0x40 ) ? HIGH : LOW);
 	digitalWrite(SegPin_h, ( segvals & 0x80 ) ? HIGH : LOW);
-	digitalWrite(DigPin_0, ( dCount & 0x01 ) ? HIGH : LOW);
-	digitalWrite(DigPin_1, ( dCount & 0x02 ) ? HIGH : LOW);
-	digitalWrite(DigPin_2, ( dCount & 0x04 ) ? HIGH : LOW);
 
 	dCount++;
-
 	if ( dCount >= nDigits )
 	{
 		dCount = 0;
 	}
+	digitalWrite(digpins[dCount], HIGH);
 
 	displayDriveTask->timer += ddInterval;
 }
