@@ -1,6 +1,6 @@
 /* dcfclock - a DFC-77 clock using an Arduino Nano
  *
- * (c) 2016 David Haworth
+ * (c) David Haworth
  *
  * dcfclock is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,11 +15,15 @@
  * You should have received a copy of the GNU General Public License
  * along with dcfclock.  If not, see <http://www.gnu.org/licenses/>.
  *
- * $Id: dcfclock.ino 4 2016-11-24 04:34:27Z dave $
- *
  * dcfclock is an Arduino sketch, written for an Arduino Nano
  *
- * See https://en.wikipedia.org/wiki/DCF77
+ *
+ * The DCF77 signal.
+ * =================
+ *
+ * See https://en.wikipedia.org/wiki/DCF77 for details
+ *
+ * The time and date is transmitted at a rate of one bit per second.
  *
  * Byte no. Bit no.  DCF bit     Description
  *      0   0        :00  M      Start of minute. Always 0.
@@ -84,6 +88,8 @@
  *      7   3        :59  0      Minute mark: no amplitude modulation
 */
 
+#include <SPI.h>
+
 typedef struct task_s task_t;
 typedef void (*taskinit_t)(task_t *);
 typedef void (*taskrun_t)(task_t *, unsigned long);
@@ -96,27 +102,18 @@ struct task_s
 
 /* Pin assginments
 */
-#define LedPin			13		// On-board LED connected to digital pin 13
-#define DcfInputPin		8		// PB0 - DCF receiver output connected to this
-#define DcfPonPin		9		// PB1 - DCF receiver PON input connected to this
+#define SpiClk			13		/* SPI clock pin - unfortunately same as on-board LED */
+#define SpiMosi			11		/* SPI output data (MOSI) */
+#define SpiMiso			12		/* SPI input data (not used) */
 
-#define SegPin_a		14		// PC0
-#define SegPin_b		15		// PC1
-#define SegPin_c		2		// PD2
-#define SegPin_d		3		// PD3
-#define SegPin_e		4		// PD4
-#define SegPin_f		5		// PD5
-#define SegPin_g		6		// PD6
-#define SegPin_h		7		// P76
-#define DigPin_0		10		// PB2
-#define DigPin_1		11		// PB3
-#define DigPin_2		12		// PB4
-#define DigPin_3		16		// PC2
-#define DigPin_4		17		// PC3
+#define SrLatch4		10		/* Latch the four main digits */
+#define SrLatch1		7		/* Latch the extra LEDs (left DP, colon etc.) */
+#define SrOE			8		/* Display output enable (active low) */
+#define SrClr			9		/* Clear the shift registers (active low) */
 
-/* Timed processing
-*/
-unsigned long then;
+#define DcfInputPin		5		// PB0 - DCF receiver output connected to this
+#define DcfPonPin		6		// PB1 - DCF receiver PON input connected to this
+
 
 /* Tasks
  *
@@ -124,14 +121,16 @@ unsigned long then;
  *    - the init function is called once at startup
  *    - the run function is called once every millisecond
 */
-void LedPingInit(task_t *);
-void LedPing(task_t *, unsigned long elapsed);
+void TimekeeperInit(task_t *);
+void Timekeeper(task_t *, unsigned long elapsed);
 
 void DcfSampleInit(task_t *);
 void DcfSample(task_t *, unsigned long elapsed);
 
 void DisplayDriveInit(task_t *);
 void DisplayDrive(task_t *, unsigned long elapsed);
+
+
 void SetDigitBit(unsigned char digit, unsigned char bit, unsigned char val);
 void SetDigit(unsigned char digit, unsigned char val);
 void SetDigit7Seg(unsigned char digit, unsigned char val);
@@ -140,7 +139,7 @@ void SetDigit7Seg(unsigned char digit, unsigned char val);
 */
 #define NTASKS	3
 task_t taskList[NTASKS] =
-{	{	0,	LedPingInit, 		LedPing			},
+{	{	0,	TimekeeperInit,		Timekeeper		},
 	{	0,	DcfSampleInit,		DcfSample		},
 	{	0,	DisplayDriveInit,	DisplayDrive	}
 };
@@ -149,6 +148,7 @@ task_t taskList[NTASKS] =
 */
 void setup(void)
 {
+	unsigned long then;
 	unsigned char i;
 
 	for ( i = 0; i < NTASKS; i++ )
@@ -160,41 +160,261 @@ void setup(void)
 	Serial.println("Hello world!");		// ToDo : it'll need a "who are you?" response
 
 	then = millis();					// Initialise the time reference.
+
+	for (;;)
+	{
+		unsigned char i;
+		unsigned long now = millis();
+		unsigned long elapsed = now - then;
+
+		if ( elapsed > 0 )
+		{
+			for ( i = 0; i < NTASKS; i++ )
+			{
+				if ( taskList[i].timer <= elapsed )
+				{
+					taskList[i].runFunc(&taskList[i], elapsed);
+				}
+
+				if ( taskList[i].timer < elapsed )
+				{
+					/* If this branch gets executed regularly,
+					 * then executing the tasks takes longer than the interval.
+					*/
+					taskList[i].timer = 0;
+				}
+				else
+				{
+					taskList[i].timer -= elapsed;
+				}
+			}
+		}
+		then = now;
+	}
 }
 
-/* loop() - standard Arduino run function
+/* loop() - standard Arduino run function (not used)
 */
 void loop(void)
 {
-	unsigned char i;
-	unsigned long now = millis();
-	unsigned long elapsed = now - then;
-
-	if ( elapsed > 0 )
-	{
-		for ( i = 0; i < NTASKS; i++ )
-		{
-			if ( taskList[i].timer <= elapsed )
-			{
-				taskList[i].runFunc(&taskList[i], elapsed);
-			}
-
-			if ( taskList[i].timer < elapsed )
-			{
-				/* If this branch gets executed regularly,
-				 * then executing the tasks takes longer than the interval.
-				*/
-				taskList[i].timer = 0;
-			}
-			else
-			{
-				taskList[i].timer -= elapsed;
-			}
-		}
-	}
-	then = now;
 }
 
+/* ========================================
+ * Display drive task
+*/
+#define nDigits		5
+
+/* Digits 0 to 3
+*/
+#define seg_a		0x02
+#define seg_b		0x04
+#define seg_c		0x08
+#define seg_d		0x10
+#define seg_e		0x20
+#define seg_f		0x40
+#define seg_g		0x80
+#define seg_dp		0x01	/* Right-hand decimal point */
+
+/* "Digit" 4
+*/
+#define seg_ldp1	0x01	/* Left-hand decimal point, 1st digit */
+#define seg_ldp2	0x02	/* Left-hand decimal point, 2nd digit */
+#define seg_ldp3	0x04	/* Left-hand decimal point, 3rd digit */
+#define seg_ldp4	0x08	/* Left-hand decimal point, 4th digit */
+#define	seg_col_u	0x10	/* Colon: upper LED */
+#define seg_col_l	0x20	/* Colon: lower LED */
+#define seg_aux1	0x40	/* Aux1 LED (purpose TBD) */
+#define seg_aux2	0x40	/* Aux2 LED (purpose TBD) */
+
+/* Change requests
+*/
+#define change_leds	0x01
+#define change_all	0x02
+
+/* Potentially update display every 100 ms
+*/
+#define ddInterval	100
+
+unsigned char display[nDigits] = { 0, 0, 0, 0, 0 };
+unsigned char display_change = 0;
+unsigned char flash_count = 0;
+
+/* Hex to 7-segment conversion. 1 means "segment ON"
+*/
+const unsigned char digit_to_7seg[16] =
+{	/* 0 */	(seg_a|seg_b|seg_c|seg_d|seg_e|seg_f),
+	/* 1 */	(seg_b|seg_c),
+	/* 2 */	(seg_a|seg_b|seg_g|seg_e|seg_d),
+	/* 3 */	(seg_a|seg_b|seg_g|seg_c|seg_d),
+	/* 4 */	(seg_f|seg_g|seg_b|seg_c),
+	/* 5 */	(seg_a|seg_f|seg_g|seg_c|seg_d),
+	/* 6 */	(seg_a|seg_f|seg_e|seg_d|seg_c|seg_g),
+	/* 7 */	(seg_a|seg_b|seg_c),
+	/* 8 */	(seg_a|seg_b|seg_c|seg_d|seg_e|seg_f|seg_g),	/* all on */
+	/* 9 */	(seg_g|seg_f|seg_a|seg_b|seg_c|seg_d),
+	/* a */	(seg_g|seg_c|seg_d|seg_e),
+	/* b */	(seg_f|seg_e|seg_d|seg_c|seg_g),
+	/* c */	(seg_g|seg_e|seg_d),
+	/* d */	(seg_b|seg_c|seg_d|seg_e|seg_g),
+	/* e */	(seg_a|seg_f|seg_g|seg_e|seg_d),
+	/* f */	(seg_a|seg_f|seg_g|seg_e)
+};
+
+void DisplayDriveInit(task_t *displayDriveTask)
+{
+	pinMode(SrLatch1, OUTPUT);		/* Drive LOW to HIGH to latch the "extra LEDs" */
+	pinMode(SrLatch4, OUTPUT);		/* Drive LOW to HIGH to latch the four digits */
+	pinMode(SrClr, OUTPUT);			/* Set LOW to clear the SRs. */
+	pinMode(SrOE, OUTPUT);			/* Set LOW to enable the SR outputs. */
+	pinMode(SpiClk, OUTPUT);		/* SPI clock */
+	pinMode(SpiMosi, OUTPUT);		/* SPI output data */
+	pinMode(SpiMiso, INPUT_PULLUP);	/* SPI input data (not used) */
+
+	digitalWrite(SrClr, HIGH);		/* Set CLR\ to inactive */
+	digitalWrite(SrOE, HIGH);		/* Disable the outputs */
+	digitalWrite(SpiClk, LOW);		/* Set clock and data to known states */
+	digitalWrite(SpiMosi, LOW);
+	digitalWrite(SrLatch1, LOW);	/* Set both latch pins to inactive */
+	digitalWrite(SrLatch4, LOW);
+
+	SPI.begin();
+	SPI.setBitOrder(MSBFIRST);
+	SPI.setDataMode(SPI_MODE0);
+
+	for ( int i = 0; i < nDigits; i++ )	/* Clear the SRs */
+		SPI.transfer(~display[i]);
+
+	digitalWrite(SrLatch1, HIGH);	/* Latch the cleared SRs into the outputs */
+	digitalWrite(SrLatch1, LOW);
+	digitalWrite(SrLatch4, HIGH);
+	digitalWrite(SrLatch4, LOW);
+	digitalWrite(SrOE, LOW);		/* Enable the outputs. Display should be enabled and blank. */
+
+	displayDriveTask->timer = ddInterval;
+}
+
+void DisplayDrive(task_t *displayDriveTask, unsigned long elapsed)
+{
+	if ( flash_count == 0 )
+	{
+		display[4] |= seg_col_u | seg_col_l;
+		display_change |= change_leds;
+	}
+	else
+	if ( flash_count == 5 )
+	{
+		display[4] &= ~(seg_col_u | seg_col_l);
+		display_change |= change_leds;
+	}
+	
+	flash_count++;
+	if ( flash_count >= 10 )
+		flash_count = 0;
+
+	switch ( display_change )
+	{
+	case 0x00:	/* Nothing */
+		break;
+	case 0x01:	/* Only update the extra LEDs */
+		SPI.transfer(~display[4]);
+		digitalWrite(SrLatch1, HIGH);
+		digitalWrite(SrLatch1, LOW);
+		display_change = 0;
+		break;
+	default:	/* Update all digits */
+		for ( int i = 0; i < nDigits; i++ )
+			SPI.transfer(~display[i]);
+		digitalWrite(SrLatch1, HIGH);
+		digitalWrite(SrLatch4, HIGH);
+		digitalWrite(SrLatch1, LOW);
+		digitalWrite(SrLatch4, LOW);
+		display_change = 0;
+		break;
+	}
+
+	displayDriveTask->timer += ddInterval;
+}
+
+#if 0
+void SetDigit(unsigned char digit, unsigned char val)
+{
+	if ( digit < nDigits )
+	{
+		digit7seg[digit] = val;
+	}
+}
+
+void SetDigitBit(unsigned char digit, unsigned char bit, unsigned char val)
+{
+	if ( (digit < nDigits) && (bit < 8) )
+	{
+		if ( val )
+		{
+			digit7seg[digit] |= (1 << bit);
+		}
+		else
+		{
+			digit7seg[digit] &= ~(1 << bit);
+		}
+	}
+}
+
+void SetDigit7Seg(unsigned char digit, unsigned char val)
+{
+	if ( digit < nDigits )
+	{
+		digit7seg[digit] = (digit7seg[digit] & 0x80) | digit_to_7seg[val&0x0f];
+	}
+}
+#endif
+
+/* ========================================
+ * Timekeeper task
+*/
+unsigned char secs = 0;
+unsigned char mins = 0;
+void TimekeeperInit(task_t *timekeeperTask)
+{
+	timekeeperTask->timer = 1000;
+}
+
+void Timekeeper(task_t *timekeeperTask, unsigned long elapsed)
+{
+	secs++;
+	if ( secs >= 60 )
+	{
+		secs = 0;
+		mins++;
+		if ( mins >= 60 )
+		{
+			mins = 0;
+		}
+		display[1] = digit_to_7seg[mins % 10];
+		display[0] = digit_to_7seg[mins / 10];
+	}
+
+	display[3] = digit_to_7seg[secs % 10];
+	display[2] = digit_to_7seg[secs / 10];
+	display_change |= change_all;
+	
+	timekeeperTask->timer += 1000;
+}
+
+#if 1
+
+/* Dummy task for DCF receiver
+*/
+void DcfSampleInit(task_t *dcfTask)
+{
+	dcfTask->timer = 10000;
+}
+
+void DcfSample(task_t *dcfTask, unsigned long elapsed)
+{
+	dcfTask->timer += 10000;
+}
+
+#else
 unsigned char calcParity(unsigned char x)
 {
 	unsigned char p = x;
@@ -202,42 +422,6 @@ unsigned char calcParity(unsigned char x)
 	p = (p ^ (p >> 2));
 	p = (p ^ (p >> 1)) & 0x01;
 	return p;
-}
-
-
-/* ========================================
- * LED Ping task
-*/
-#define ledPingOnInterval	20
-#define ledPingOffInterval	1980
-char ledState;
-
-void LedPingInit(task_t *ledTask)
-{
-	pinMode(LedPin, OUTPUT);			// Sets the LED pin as output
-	digitalWrite(LedPin, LOW);			// Drive the pin low (LED off)
-	ledState = 0;
-	ledTask->timer = ledPingOffInterval;
-}
-
-void LedPing(task_t *ledTask, unsigned long elapsed)
-{
-	if ( ledState )
-	{
-		/* Turn LED off
-		*/
-		ledState = 0;
-		digitalWrite(LedPin, LOW);
-		ledTask->timer += ledPingOffInterval;
-	}
-	else
-	{
-		/* Turn LED on
-		*/
-		ledState = 1;
-		digitalWrite(LedPin, HIGH);
-		ledTask->timer += ledPingOnInterval;
-	}
 }
 
 /* ========================================
@@ -464,142 +648,4 @@ void dcfWriteTime(void)
 	SetDigit7Seg(2, dcfMinute/16);
 	SetDigit7Seg(3, dcfMinute%16);
 }
-
-
-/* ========================================
- * Display drive task
-*/
-#define ddInterval	1
-
-#define seg_a	0x01
-#define seg_b	0x02
-#define seg_c	0x04
-#define seg_d	0x08
-#define seg_e	0x10
-#define seg_f	0x20
-#define seg_g	0x40
-#define seg_h	0x80
-
-#define nDigits		5
-unsigned char digit7seg[nDigits];
-unsigned char dCount;
-
-const unsigned char digit_to_7seg[16] =
-{	/* 0 */	(seg_a|seg_b|seg_c|seg_d|seg_e|seg_f),
-	/* 1 */	(seg_b|seg_c),
-	/* 2 */	(seg_a|seg_b|seg_g|seg_e|seg_d),
-	/* 3 */	(seg_a|seg_b|seg_g|seg_c|seg_d),
-	/* 4 */	(seg_f|seg_g|seg_b|seg_c),
-	/* 5 */	(seg_a|seg_f|seg_g|seg_c|seg_d),
-	/* 6 */	(seg_a|seg_f|seg_e|seg_d|seg_c|seg_g),
-	/* 7 */	(seg_a|seg_b|seg_c),
-	/* 8 */	(seg_a|seg_b|seg_c|seg_d|seg_e|seg_f|seg_g),	/* all on */
-	/* 9 */	(seg_g|seg_f|seg_a|seg_b|seg_c|seg_d),
-	/* a */	(seg_g|seg_c|seg_d|seg_e),
-	/* b */	(seg_f|seg_e|seg_d|seg_c|seg_g),
-	/* c */	(seg_g|seg_e|seg_d),
-	/* d */	(seg_b|seg_c|seg_d|seg_e|seg_g),
-	/* e */	(seg_a|seg_f|seg_g|seg_e|seg_d),
-	/* f */	(seg_a|seg_f|seg_g|seg_e)
-};
-
-const unsigned char segpins[8] =
-{	SegPin_a, SegPin_b, SegPin_c, SegPin_d, SegPin_e, SegPin_f, SegPin_g, SegPin_h	};
-
-const unsigned char digpins[5] =
-{	DigPin_0, DigPin_1, DigPin_2, DigPin_3, DigPin_4	};
-
-void DisplayDriveInit(task_t *displayDriveTask)
-{
-	pinMode(SegPin_a, OUTPUT);			// Sets the segment pins as output
-	pinMode(SegPin_b, OUTPUT);
-	pinMode(SegPin_c, OUTPUT);
-	pinMode(SegPin_d, OUTPUT);
-	pinMode(SegPin_e, OUTPUT);
-	pinMode(SegPin_f, OUTPUT);
-	pinMode(SegPin_g, OUTPUT);
-	pinMode(SegPin_h, OUTPUT);
-	pinMode(DigPin_0, OUTPUT);
-	pinMode(DigPin_1, OUTPUT);
-	pinMode(DigPin_2, OUTPUT);
-	pinMode(DigPin_3, OUTPUT);
-	pinMode(DigPin_4, OUTPUT);
-
-	digitalWrite(SegPin_a, LOW);		// Drive the segment pins low (LED off)
-	digitalWrite(SegPin_b, LOW);
-	digitalWrite(SegPin_c, LOW);
-	digitalWrite(SegPin_d, LOW);
-	digitalWrite(SegPin_e, LOW);
-	digitalWrite(SegPin_f, LOW);
-	digitalWrite(SegPin_g, LOW);
-	digitalWrite(SegPin_h, LOW);
-	digitalWrite(SegPin_h, LOW);
-	digitalWrite(SegPin_h, LOW);
-	digitalWrite(DigPin_0, LOW);		// Drive the digit pins low (LEDs off)
-	digitalWrite(DigPin_1, LOW);
-	digitalWrite(DigPin_2, LOW);
-	digitalWrite(DigPin_3, LOW);
-	digitalWrite(DigPin_4, LOW);
-
-	digit7seg[0] = seg_g|seg_h;
-	digit7seg[1] = seg_g|seg_h;
-	digit7seg[2] = seg_g|seg_h;
-	digit7seg[3] = seg_g|seg_h;
-
-	displayDriveTask->timer = ddInterval;
-}
-
-void DisplayDrive(task_t *displayDriveTask, unsigned long elapsed)
-{
-	unsigned segvals = digit7seg[dCount];
-
-	digitalWrite(digpins[dCount], LOW);
-	digitalWrite(SegPin_a, ( segvals & 0x01 ) ? HIGH : LOW);
-	digitalWrite(SegPin_b, ( segvals & 0x02 ) ? HIGH : LOW);
-	digitalWrite(SegPin_c, ( segvals & 0x04 ) ? HIGH : LOW);
-	digitalWrite(SegPin_d, ( segvals & 0x08 ) ? HIGH : LOW);
-	digitalWrite(SegPin_e, ( segvals & 0x10 ) ? HIGH : LOW);
-	digitalWrite(SegPin_f, ( segvals & 0x20 ) ? HIGH : LOW);
-	digitalWrite(SegPin_g, ( segvals & 0x40 ) ? HIGH : LOW);
-	digitalWrite(SegPin_h, ( segvals & 0x80 ) ? HIGH : LOW);
-
-	dCount++;
-	if ( dCount >= nDigits )
-	{
-		dCount = 0;
-	}
-	digitalWrite(digpins[dCount], HIGH);
-
-	displayDriveTask->timer += ddInterval;
-}
-
-void SetDigit(unsigned char digit, unsigned char val)
-{
-	if ( digit < nDigits )
-	{
-		digit7seg[digit] = val;
-	}
-}
-
-void SetDigitBit(unsigned char digit, unsigned char bit, unsigned char val)
-{
-	if ( (digit < nDigits) && (bit < 8) )
-	{
-		if ( val )
-		{
-			digit7seg[digit] |= (1 << bit);
-		}
-		else
-		{
-			digit7seg[digit] &= ~(1 << bit);
-		}
-	}
-}
-
-void SetDigit7Seg(unsigned char digit, unsigned char val)
-{
-	if ( digit < nDigits )
-	{
-		digit7seg[digit] = (digit7seg[digit] & 0x80) | digit_to_7seg[val&0x0f];
-	}
-}
+#endif
