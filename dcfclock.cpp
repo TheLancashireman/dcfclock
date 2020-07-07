@@ -87,18 +87,9 @@
  *      7   2        :58  P3     Even parity over date bits
  *      7   3        :59  0      Minute mark: no amplitude modulation
 */
-
+#include <Arduino.h>
 #include <SPI.h>
-
-typedef struct task_s task_t;
-typedef void (*taskinit_t)(task_t *);
-typedef void (*taskrun_t)(task_t *, unsigned long);
-struct task_s
-{
-	unsigned long timer;
-	taskinit_t initFunc;
-	taskrun_t runFunc;
-};
+#include "tasker.h"
 
 /* Pin assginments
 */
@@ -139,58 +130,26 @@ void SetDigit7Seg(unsigned char digit, unsigned char val);
 */
 #define NTASKS	3
 task_t taskList[NTASKS] =
-{	{	0,	TimekeeperInit,		Timekeeper		},
-	{	0,	DcfSampleInit,		DcfSample		},
-	{	0,	DisplayDriveInit,	DisplayDrive	}
+{	{	TimekeeperInit,		Timekeeper,		0	},
+	{	DcfSampleInit,		DcfSample,		0	},
+	{	DisplayDriveInit,	DisplayDrive,	0	}
 };
+
+unsigned ReadTime(void)
+{
+	return (unsigned)millis();
+}
 
 /* setup() - standard Arduino startup function
 */
 void setup(void)
 {
-	unsigned long then;
-	unsigned char i;
-
-	for ( i = 0; i < NTASKS; i++ )
-	{
-		taskList[i].initFunc(&taskList[i]);
-	}
+	taskerSetup(taskList, NTASKS);
 
 	Serial.begin(9600);					// Start the serial port.
 	Serial.println("Hello world!");		// ToDo : it'll need a "who are you?" response
 
-	then = millis();					// Initialise the time reference.
-
-	for (;;)
-	{
-		unsigned char i;
-		unsigned long now = millis();
-		unsigned long elapsed = now - then;
-
-		if ( elapsed > 0 )
-		{
-			for ( i = 0; i < NTASKS; i++ )
-			{
-				if ( taskList[i].timer <= elapsed )
-				{
-					taskList[i].runFunc(&taskList[i], elapsed);
-				}
-
-				if ( taskList[i].timer < elapsed )
-				{
-					/* If this branch gets executed regularly,
-					 * then executing the tasks takes longer than the interval.
-					*/
-					taskList[i].timer = 0;
-				}
-				else
-				{
-					taskList[i].timer -= elapsed;
-				}
-			}
-		}
-		then = now;
-	}
+	taskerRun(taskList, NTASKS, ReadTime);
 }
 
 /* loop() - standard Arduino run function (not used)
