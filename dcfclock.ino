@@ -224,7 +224,7 @@ void loop(void)
 #define	seg_col_u	0x10	/* Colon: upper LED */
 #define seg_col_l	0x20	/* Colon: lower LED */
 #define seg_aux1	0x40	/* Aux1 LED (purpose TBD) */
-#define seg_aux2	0x40	/* Aux2 LED (purpose TBD) */
+#define seg_aux2	0x80	/* Aux2 LED (purpose TBD) */
 
 /* Change requests
 */
@@ -295,21 +295,25 @@ void DisplayDriveInit(task_t *displayDriveTask)
 
 void DisplayDrive(task_t *displayDriveTask, unsigned long elapsed)
 {
+#if 0
 	if ( flash_count == 0 )
 	{
-		display[4] |= seg_col_u | seg_col_l;
+		display[4] = 0xaa;
+//		display[4] |= (seg_col_u | seg_col_l);
 		display_change |= change_leds;
 	}
 	else
-	if ( flash_count == 5 )
+	if ( flash_count == 10 )
 	{
-		display[4] &= ~(seg_col_u | seg_col_l);
+		display[4] = 0x55;
+//		display[4] &= ~(seg_col_u | seg_col_l);
 		display_change |= change_leds;
 	}
 	
 	flash_count++;
-	if ( flash_count >= 10 )
+	if ( flash_count >= 20 )
 		flash_count = 0;
+#endif
 
 	switch ( display_change )
 	{
@@ -390,11 +394,18 @@ void Timekeeper(task_t *timekeeperTask, unsigned long elapsed)
 			mins = 0;
 		}
 		display[1] = digit_to_7seg[mins % 10];
-		display[0] = digit_to_7seg[mins / 10];
+		if ( (mins / 10) == 0 )
+			display[0] = 0x00;
+		else
+			display[0] = digit_to_7seg[mins / 10];
 	}
 
 	display[3] = digit_to_7seg[secs % 10];
 	display[2] = digit_to_7seg[secs / 10];
+	if ( (secs & 0x01) == 0 )
+		display[4] &= ~(seg_col_u | seg_col_l);
+	else
+		display[4] |= (seg_col_u | seg_col_l);
 	display_change |= change_all;
 	
 	timekeeperTask->timer += 1000;
