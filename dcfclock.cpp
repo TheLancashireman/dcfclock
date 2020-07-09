@@ -1,4 +1,4 @@
-/* dcfclock - a DFC-77 clock using an Arduino Nano
+/* dcfclock.cpp - a DFC-77 clock using an Arduino Nano
  *
  * (c) David Haworth
  *
@@ -22,6 +22,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include "tasker.h"
+#include "timekeeper.h"
 
 /* Pin assginments
 */
@@ -44,9 +45,6 @@
  *    - the init function is called once at startup
  *    - the run function is called once every millisecond
 */
-void TimekeeperInit(task_t *);
-void Timekeeper(task_t *, unsigned long elapsed);
-
 void DcfSampleInit(task_t *);
 void DcfSample(task_t *, unsigned long elapsed);
 
@@ -262,45 +260,6 @@ void SetDigit7Seg(unsigned char digit, unsigned char val)
 	}
 }
 #endif
-
-/* ========================================
- * Timekeeper task
-*/
-unsigned char secs = 0;
-unsigned char mins = 0;
-void TimekeeperInit(task_t *timekeeperTask)
-{
-	timekeeperTask->timer = 1000;
-}
-
-void Timekeeper(task_t *timekeeperTask, unsigned long elapsed)
-{
-	secs++;
-	if ( secs >= 60 )
-	{
-		secs = 0;
-		mins++;
-		if ( mins >= 60 )
-		{
-			mins = 0;
-		}
-		display[1] = digit_to_7seg[mins % 10];
-		if ( (mins / 10) == 0 )
-			display[0] = 0x00;
-		else
-			display[0] = digit_to_7seg[mins / 10];
-	}
-
-	display[3] = digit_to_7seg[secs % 10];
-	display[2] = digit_to_7seg[secs / 10];
-	if ( (secs & 0x01) == 0 )
-		display[4] &= ~(seg_col_u | seg_col_l);
-	else
-		display[4] |= (seg_col_u | seg_col_l);
-	display_change |= change_all;
-	
-	timekeeperTask->timer += 1000;
-}
 
 #if 1
 
