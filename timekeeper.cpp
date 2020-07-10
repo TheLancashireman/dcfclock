@@ -34,6 +34,12 @@ unsigned char secs;		// No of seconds 0..59
 void TimekeeperInit(task_t *timekeeperTask)
 {
 	timekeeperTask->timer = TICKS_PER_SECOND;
+
+	setdigitnumeric(3, 0); 
+	setdigitnumeric(2, 0);
+	setdigitnumeric(1, 0);
+	setdigitsegments(0, 0);
+	display_change |= change_digits;
 }
 
 void Timekeeper(task_t *timekeeperTask, unsigned long elapsed)

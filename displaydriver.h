@@ -27,8 +27,8 @@
 // 5 digits: 4 real digits plus a set of assorted LEDs
 #define nDigits		5
 
-/* Digits 0 to 3
-*/
+// Digits 0 to 3
+#define seg_dp		0x01	// Right-hand decimal point
 #define seg_a		0x02
 #define seg_b		0x04
 #define seg_c		0x08
@@ -36,18 +36,34 @@
 #define seg_e		0x20
 #define seg_f		0x40
 #define seg_g		0x80
-#define seg_dp		0x01	/* Right-hand decimal point */
 
-/* "Digit" 4
-*/
-#define seg_ldp1	0x01	/* Left-hand decimal point, 1st digit */
-#define seg_ldp2	0x02	/* Left-hand decimal point, 2nd digit */
-#define seg_ldp3	0x04	/* Left-hand decimal point, 3rd digit */
-#define seg_ldp4	0x08	/* Left-hand decimal point, 4th digit */
-#define	seg_col_u	0x10	/* Colon: upper LED */
-#define seg_col_l	0x20	/* Colon: lower LED */
-#define seg_aux1	0x40	/* Aux1 LED (purpose TBD) */
-#define seg_aux2	0x80	/* Aux2 LED (purpose TBD) */
+// "Digit" 4
+#define seg_ldp1	0x01	// Left-hand decimal point, 1st digit
+#define seg_ldp2	0x02	// Left-hand decimal point, 2nd digit
+#define seg_ldp3	0x04	// Left-hand decimal point, 3rd digit
+#define seg_ldp4	0x08	// Left-hand decimal point, 4th digit
+#define	seg_col_u	0x10	// Colon: upper LED
+#define seg_col_l	0x20	// Colon: lower LED
+#define seg_aux1	0x40	// Aux1 LED (purpose TBD)
+#define seg_aux2	0x80	// Aux2 LED (purpose TBD)
+
+// Character generation
+#define chargen_0	(seg_a|seg_b|seg_c|seg_d|seg_e|seg_f)
+#define chargen_1	(seg_b|seg_c)
+#define chargen_2	(seg_a|seg_b|seg_g|seg_e|seg_d)
+#define chargen_3	(seg_a|seg_b|seg_g|seg_c|seg_d)
+#define chargen_4	(seg_f|seg_g|seg_b|seg_c)
+#define chargen_5	(seg_a|seg_f|seg_g|seg_c|seg_d)
+#define chargen_6	(seg_a|seg_f|seg_e|seg_d|seg_c|seg_g)
+#define chargen_7	(seg_a|seg_b|seg_c)
+#define chargen_8	(seg_a|seg_b|seg_c|seg_d|seg_e|seg_f|seg_g)
+#define chargen_9	(seg_g|seg_f|seg_a|seg_b|seg_c|seg_d)
+#define chargen_a	(seg_g|seg_c|seg_d|seg_e)
+#define chargen_b	(seg_f|seg_e|seg_d|seg_c|seg_g)
+#define chargen_c	(seg_g|seg_e|seg_d)
+#define chargen_d	(seg_b|seg_c|seg_d|seg_e|seg_g)
+#define chargen_e	(seg_a|seg_f|seg_g|seg_e|seg_d)
+#define chargen_f	(seg_a|seg_f|seg_g|seg_e)
 
 // Update requests
 #define change_leds		0x01
@@ -75,7 +91,7 @@ void DisplayDriver(task_t *, unsigned long elapsed);
 // setdigitsegments() - sets the segments a..g to specified values (leaves dp alone)
 static inline void setdigitsegments(int dig, unsigned char segs)
 {
-	display[dig] = (display[dig] & ~seg_dp) | segs;
+	display[dig] = (display[dig] & seg_dp) | segs;
 }
 
 // setdigitdp() - sets the (right-hand) dp to specified value (leaves a..g alone)
@@ -90,9 +106,19 @@ static inline void setdigitdp(int dig, unsigned char dp)
 // setdigitnumeric() - sets the segments a..g to a specified hexadecimal digit (leaves dp alone)
 static inline void setdigitnumeric(int dig, unsigned char num)
 {
-	if ( num < 10 )
+	switch (num)
 	{
-		setdigitsegments(dig, digit_to_7seg[num & 0x0f]);
+	case 0:	setdigitsegments(dig, chargen_0);	break;
+	case 1:	setdigitsegments(dig, chargen_1);	break;
+	case 2:	setdigitsegments(dig, chargen_2);	break;
+	case 3:	setdigitsegments(dig, chargen_3);	break;
+	case 4:	setdigitsegments(dig, chargen_4);	break;
+	case 5:	setdigitsegments(dig, chargen_5);	break;
+	case 6:	setdigitsegments(dig, chargen_6);	break;
+	case 7:	setdigitsegments(dig, chargen_7);	break;
+	case 8:	setdigitsegments(dig, chargen_8);	break;
+	case 9:	setdigitsegments(dig, chargen_9);	break;
+	default:	break;	// Nothing				
 	}
 }
 
