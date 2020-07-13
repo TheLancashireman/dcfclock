@@ -22,25 +22,148 @@
  *
 */
 #include <Arduino.h>
-#include <tasker.h>
+#include "dcfclock.h"
+#include "tasker.h"
+#include "displaydriver.h"
 
-#define DcfInputPin		5		// PB0 - DCF receiver output connected to this
-#define DcfPonPin		6		// PB1 - DCF receiver PON input connected to this
+#define DcfInputPin		2			// DCF receiver output connected to this (must be an INT pin)
+#define DcfPonPin		4			// DCF receiver PON input connected to this
 
-#if 1
+#define DcfPonInterval	Ticks(1100)	// 1.1 seconds
+#define DcfInterval		Ticks(100)	// 0.1 seconds
 
-// Dummy task for DCF receiver
+#define DcfMinSync		Ticks(1900)	// 1.9 seconds
+#define DcfMaxSync		Ticks(2200)	// 2.2 seconds
+#define DcfDebounce		Ticks(60)
+#define DcfMin0			Ticks(80)	// Pulse width 100 ms +/- 20 --> 0
+#define DcfMax0			Ticks(120)
+#define DcfMin1			Ticks(180)	// Pulse width 200 ms +/- 20 --> 1
+#define DcfMax1			Ticks(220)
+
+#define DcfState_0		0		// Seen 0
+#define DcfState_1		1		// Seen 1
+#define DcfState_Sync	2		// Waiting for end-of-minute marker
+#define	DcfState_Pon	3		// Power-on interval
+
+unsigned char dcfState;
+unsigned char dcfPulse;
+unsigned char bitNo;
+unsigned leadingTime;
+
+static void DcfInterruptHandler(void);	// Formard
+
 void DcfDecoderInit(task_t *dcfTask)
 {
-	dcfTask->timer = 10000;
+	dcfTask->timer = DcfPonInterval;	// Gives the required startup signal for the DCF module
+
+#if 0	// DCF disabled for the moment
+
+	pinMode(DcfInputPin, INPUT_PULLUP);
+	pinMode(DcfPonPin, OUTPUT);
+
+	attachInterrupt(digitalPinToInterrupt(DcfInputPin), DcfInterruptHandler, CHANGE);
+
+	digitalWrite(DcfPonPin, HIGH);		// Drive the pin high (DCF off)
+	dcfState = DcfState_Pon;
+	dcfPulse = 2;
+#endif
 }
 
 void DcfDecoder(task_t *dcfTask, unsigned long elapsed)
 {
-	dcfTask->timer += 10000;
+#if 0	// DCF disabled for the moment
+	dcfTask->timer += DcfInterval;
+
+	switch (dcfState)
+	{
+	case DcfState_Pon:
+		digitalWrite(DcfPonPin, LOW);
+		break;
+
+	case DcfState_Sync:
+		break;
+
+	case DcfState_0:
+		break;
+
+	case DcfState_1:
+		break;
+
+	default:
+		break;
+	}
+#endif
 }
 
-#else
+static void DcfInterruptHandler(void)
+{
+	unsigned tim = ReadTime();			// As close as possible to the edge time
+	unsigned char pinstate = digitalRead(DcfInputPin);
+
+	setled(seg_ldp1, pinstate==HIGH?1:0);
+	display_change |= change_leds;
+
+	if ( dcfState == DcfState_Pon )
+	{
+		// First edge since power-on
+		if ( pinstate == HIGH )
+		{
+			// A leading edge - record the time and go to sync state.
+			leadingTime = tim;
+			dcfState = DcfState_Sync;
+		}
+		return;
+	}
+
+	unsigned width = tim - leadingTime;
+
+	if ( width < DcfDebounce )
+		return;							// Ignore any changes that come too close together
+
+	if ( dcfState == DcfState_Sync )
+	{
+		// Looking for a leading-edge to leading-edge of approx. 2 seconds
+		if ( pinstate == HIGH )
+		{
+			leadingTime = tim;
+			if ( width >= DcfMinSync && width <= DcfMaxSync )
+			{
+				// Start receiving bits
+				dcfState = DcfState_1;
+				bitNo = 0;
+			}
+			return;
+		}
+		return;		// Ignore trailing edges during sync search
+	}
+
+	if ( dcfState == DcfState_1 && pinstate == LOW )
+	{
+		// Had a pulse
+		if ( width >= DcfMin0 && width <= DcfMax0 )
+		{
+			// A good 0 pulse - signal the background task
+			dcfPulse = 0;
+			return;
+		}
+		if ( width >= DcfMin1 && width <= DcfMax1 )
+		{
+			// A good 1 pulse
+			dcfPulse = 1;
+			return;
+		}
+		// Out-of-spec pulse - try to resync.
+		dcfPulse = 2;
+		dcfState = DcfState_Sync;
+		return;
+	}
+	if ( dcfState == DcfState_0 && pinstate == HIGH )
+	{
+		leadingTime = tim;
+	}
+}
+
+#if 0
 unsigned char calcParity(unsigned char x)
 {
 	unsigned char p = x;
@@ -54,7 +177,6 @@ unsigned char calcParity(unsigned char x)
 // DCF Sample task
 #define dcfSampleInterval	5		//	5 milliseconds
 #define dcfDebounce			50		//	50 milliseconds
-#define dcfPowerOnInterval	1100	//	1.1 seconds
 #define dcfPulseWidthZero	100		//	100 milliseconds pulse width --> binary 0
 #define dcfPulseWidthOne	200		//	200 milliseconds pulse width --> binary 1
 #define dcfPulseWidthThrsh	((dcfPulseWidthZero+dcfPulseWidthOne)/2)
@@ -82,9 +204,6 @@ void dcfWriteTime(void);
 
 void DcfSampleInit(task_t *dcfTask)
 {
-	pinMode(DcfInputPin, INPUT_PULLUP); //	Set up the input pins
-	pinMode(DcfPonPin, OUTPUT); 
-	digitalWrite(DcfPonPin, HIGH);		// Drive the pin high (DCF off)
 	dcfTask->timer = dcfPowerOnInterval;
 }
 

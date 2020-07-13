@@ -38,10 +38,10 @@
 #define seg_g		0x80
 
 // "Digit" 4
-#define seg_ldp1	0x01	// Left-hand decimal point, 1st digit
-#define seg_ldp2	0x02	// Left-hand decimal point, 2nd digit
-#define seg_ldp3	0x04	// Left-hand decimal point, 3rd digit
-#define seg_ldp4	0x08	// Left-hand decimal point, 4th digit
+#define seg_ldp4	0x01	// Left-hand decimal point, 1st digit
+#define seg_ldp3	0x02	// Left-hand decimal point, 2nd digit
+#define seg_ldp2	0x04	// Left-hand decimal point, 3rd digit
+#define seg_ldp1	0x08	// Left-hand decimal point, 4th digit
 #define	seg_col_u	0x10	// Colon: upper LED
 #define seg_col_l	0x20	// Colon: lower LED
 #define seg_aux1	0x40	// Aux1 LED (purpose TBD)
@@ -129,6 +129,15 @@ static inline void setcolon(int on)
 		display[4] |= (seg_col_u | seg_col_l);
 	else
 		display[4] &= ~(seg_col_u | seg_col_l);
+}
+
+// setled() - sets a LED on or off
+static inline void setled(unsigned char led, int on)
+{
+	if ( on )
+		display[4] |= led;
+	else
+		display[4] &= ~led;
 }
 
 #endif

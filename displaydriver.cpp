@@ -21,20 +21,21 @@
 */
 #include <Arduino.h>
 #include <SPI.h>
-#include <tasker.h>
-#include <displaydriver.h>
+#include "dcfclock.h"
+#include "tasker.h"
+#include "displaydriver.h"
 
 // Pin assginments
-#define SpiClk			13		// SPI clock pin - unfortunately same as on-board LED
-#define SpiMosi			11		// SPI output data (MOSI)
-#define SpiMiso			12		// SPI input data (not used)
+#define SpiClk			13			// SPI clock pin - unfortunately same as on-board LED
+#define SpiMosi			11			// SPI output data (MOSI)
+#define SpiMiso			12			// SPI input data (not used)
 
-#define SrLatch4		10		// Latch the four main digits
-#define SrLatch1		7		// Latch the extra LEDs (left DP, colon etc.)
-#define SrOE			8		// Display output enable (active low)
-#define SrClr			9		// Clear the shift registers (active low)
+#define SrLatch4		10			// Latch the four main digits
+#define SrLatch1		7			// Latch the extra LEDs (left DP, colon etc.)
+#define SrOE			8			// Display output enable (active low)
+#define SrClr			9			// Clear the shift registers (active low)
 
-#define ddInterval		100		// 100 ms
+#define ddInterval		Ticks(100)	// 100 ms
 
 unsigned char display[nDigits];
 unsigned char display_change;

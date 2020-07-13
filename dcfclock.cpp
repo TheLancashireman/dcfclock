@@ -21,6 +21,7 @@
 */
 #include <Arduino.h>
 #include <SPI.h>
+#include "dcfclock.h"
 #include "tasker.h"
 #include "timekeeper.h"
 #include "displaydriver.h"
@@ -34,26 +35,30 @@ task_t taskList[NTASKS] =
 	{	DcfDecoderInit,		DcfDecoder,		0	}
 };
 
-// Time function for the tasker module
-unsigned ReadTime(void)
-{
-	return (unsigned)millis();
-}
-
-/* setup() - standard Arduino startup function
-*/
+// setup() - standard Arduino startup function
+// Everything happens in here
 void setup(void)
 {
 	taskerSetup(taskList, NTASKS);
 
-	Serial.begin(9600);					// Start the serial port.
+	Serial.begin(115200);				// Start the serial port.
 	Serial.println("Hello world!");		// ToDo : it'll need a "who are you?" response
 
 	taskerRun(taskList, NTASKS, ReadTime);
 }
 
-/* loop() - standard Arduino run function (not used)
-*/
+// loop() - standard Arduino run function (not used)
 void loop(void)
 {
+}
+
+// Time function for the tasker module
+unsigned ReadTime(void)
+{
+#if TimeSource == Time_millis
+	return (unsigned)millis();
+#else
+#error "External time not supported yet"
+	return 0;
+#endif
 }

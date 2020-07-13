@@ -19,11 +19,11 @@
  *
  * dcfclock is an Arduino sketch, written for an Arduino Nano
 */
-#include <timekeeper.h>
-#include <displaydriver.h>
+#include "dcfclock.h"
+#include "timekeeper.h"
+#include "displaydriver.h"
 
-#define TICKS_PER_SECOND	1000	// Using the Arduino "millis" timebase
-// #define TICKS_PER_SECOND	50		// Using a 50 Hz signal derived from the mains
+#define TICKS_PER_SECOND	Ticks(1000)
 
 // Current time and date in local time
 unsigned days;			// No. of days since 2020-01-01. 16-bit gives over 175 years

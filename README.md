@@ -12,7 +12,8 @@ Features
 
 See https://en.wikipedia.org/wiki/DCF77 for details
 
-The time and date is transmitted at a rate of one bit per second.
+The time and date is transmitted at a rate of one bit per second. A narrow pulse (100 ms) is a 0,
+a wide pulse (200 ms) is a 1
 
 | Byte no. | Bit no. | DCF bit | Weight | Description                                                   |
 |:---------|:--------|:--------|:-------|:--------------------------------------------------------------|
