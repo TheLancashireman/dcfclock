@@ -88,6 +88,7 @@
 extern unsigned char display[nDigits];
 extern unsigned char display_change;
 extern unsigned char display_mode;
+extern unsigned char update_time;
 extern const unsigned char digit_to_7seg[16];
 
 // The two tasker functions

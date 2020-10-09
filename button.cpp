@@ -194,6 +194,12 @@ void Button(task_t *buttonTask, unsigned long elapsed)
 					if ( mode >= mode_xxx )
 					{
 						display_mode = state | mode_hhmm;
+
+						setdigit(0, 0x00);		// Clear out the junk from test mode
+						setdigit(1, 0x00);
+						setdigit(2, 0x00);
+						setdigit(3, 0x00);
+						setdigit(4, 0x00);
 					}
 					else
 					{

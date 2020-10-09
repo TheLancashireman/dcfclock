@@ -39,11 +39,6 @@ unsigned char monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 
 unsigned char update_time;
 
-void set_mmss(void);
-void set_hhmm(void);
-void set_DDMM(void);
-void set_YYYY(void);
-
 void TimekeeperInit(task_t *timekeeperTask)
 {
 	timekeeperTask->timer = TICKS_PER_SECOND;
@@ -107,36 +102,12 @@ void Timekeeper(task_t *timekeeperTask, unsigned long elapsed)
 	{
 		update_time = 1;
 	}
+}
 
-	if ( update_time )
-	{
-		switch ( dmode )
-		{
-		case mode_YYYY:
-			set_YYYY();
-			break;
-
-		case mode_DDMM:
-			set_DDMM();
-			break;
-
-		case mode_hhmm:
-			set_hhmm();
-			break;
-
-		case mode_mmss:
-			set_mmss();
-			break;
-		}
-
-		update_time = 0;
-	}
-
-	if ( dmode == mode_hhmm || dmode == mode_mmss )
-	{
-		setcolon(secs & 0x01);				// Flashing colon for time display
-		display_change |= change_leds;
-	}
+void flash_colon()
+{
+	setcolon(secs & 0x01);				// Flashing colon for time display
+	display_change |= change_leds;
 }
 
 void set_mmss(void)

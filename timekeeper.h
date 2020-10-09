@@ -29,6 +29,11 @@
 void TimekeeperInit(task_t *);
 void Timekeeper(task_t *, unsigned long elapsed);
 
-extern unsigned char update_time;
+extern void flash_colon(void);
+extern void set_mmss(void);
+extern void set_hhmm(void);
+extern void set_DDMM(void);
+extern void set_YYYY(void);
+
 
 #endif

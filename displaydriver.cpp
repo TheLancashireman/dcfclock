@@ -24,6 +24,7 @@
 #include "dcfclock.h"
 #include "tasker.h"
 #include "displaydriver.h"
+#include "timekeeper.h"
 
 // Pin assginments
 #define SpiClk			13			// SPI clock pin - unfortunately same as on-board LED
@@ -83,6 +84,35 @@ void DisplayDriverInit(task_t *displayDriveTask)
 void DisplayDriver(task_t *displayDriveTask, unsigned long elapsed)
 {
 	displayDriveTask->timer += ddInterval;
+
+	unsigned char dmode = display_mode & 0x0f;
+
+	switch ( dmode )
+	{
+	case mode_YYYY:
+		if ( update_time )
+			set_YYYY();
+		break;
+
+	case mode_DDMM:
+		if ( update_time )
+			set_DDMM();
+		break;
+
+	case mode_hhmm:
+		if ( update_time )
+			set_hhmm();
+		flash_colon();
+		break;
+
+	case mode_mmss:
+		if ( update_time )
+			set_mmss();
+		flash_colon();
+		break;
+	}
+
+	update_time = 0;
 
 	switch ( display_change )
 	{
