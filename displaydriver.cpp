@@ -31,9 +31,7 @@
 #define SpiMiso			12			// SPI input data (not used)
 
 #define SrLatch4		10			// Latch the four main digits
-#define SrLatch1		7			// Latch the extra LEDs (left DP, colon etc.)
-#define SrOE			8			// Display output enable (active low)
-#define SrClr			9			// Clear the shift registers (active low)
+#define SrLatch1		9			// Latch the extra LEDs (left DP, colon etc.)
 
 #define ddInterval		Ticks(100)	// 100 ms
 
@@ -45,14 +43,10 @@ void DisplayDriverInit(task_t *displayDriveTask)
 {
 	pinMode(SrLatch1, OUTPUT);		// Drive LOW to HIGH to latch the "extra LEDs"
 	pinMode(SrLatch4, OUTPUT);		// Drive LOW to HIGH to latch the four digits
-	pinMode(SrClr, OUTPUT);			// Set LOW to clear the SRs
-	pinMode(SrOE, OUTPUT);			// Set LOW to enable the SR outputs
 	pinMode(SpiClk, OUTPUT);		// SPI clock
 	pinMode(SpiMosi, OUTPUT);		// SPI output data
 	pinMode(SpiMiso, INPUT_PULLUP);	// SPI input data (not used)
 
-	digitalWrite(SrClr, HIGH);		// Set CLR\ to inactive
-	digitalWrite(SrOE, HIGH);		// Disable the outputs
 	digitalWrite(SpiClk, LOW);		// Set clock and data to known states
 	digitalWrite(SpiMosi, LOW);
 	digitalWrite(SrLatch1, LOW);	// Set both latch pins to inactive
@@ -63,7 +57,7 @@ void DisplayDriverInit(task_t *displayDriveTask)
 	SPI.setDataMode(SPI_MODE0);
 
 	display_change = 0;
-	display_mode = mode_hhmm;
+	display_mode = mode_xxx | state_normal;
 
 	for ( int i = 0; i < nDigits; i++ )	// Clear the SRs
 	{
@@ -71,11 +65,17 @@ void DisplayDriverInit(task_t *displayDriveTask)
 		SPI.transfer(~display[i]);
 	}
 
+	setdigitsegments(0, 0xff);
+	setdigitsegments(1, 0xff);
+	setdigitsegments(2, 0xff);
+	setdigitsegments(3, 0xff);
+	setdigitsegments(4, 0xff);
+	display_change |= change_digits;
+	
 	digitalWrite(SrLatch1, HIGH);	// Latch the cleared SRs into the outputs
 	digitalWrite(SrLatch1, LOW);
 	digitalWrite(SrLatch4, HIGH);
 	digitalWrite(SrLatch4, LOW);
-	digitalWrite(SrOE, LOW);		// Enable the outputs. Display should be enabled and blank
 
 	displayDriveTask->timer = ddInterval;
 }

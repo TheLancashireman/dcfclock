@@ -25,14 +25,16 @@
 #include "tasker.h"
 #include "timekeeper.h"
 #include "displaydriver.h"
+#include "button.h"
 #include "dcfdecoder.h"
 
 // Task list
-#define NTASKS	3
+#define NTASKS	4
 task_t taskList[NTASKS] =
 {	{	DisplayDriverInit,	DisplayDriver,	0	},
 	{	TimekeeperInit,		Timekeeper,		0	},
-	{	DcfDecoderInit,		DcfDecoder,		0	}
+	{	DcfDecoderInit,		DcfDecoder,		0	},
+	{	ButtonInit,			Button,			0	}
 };
 
 // setup() - standard Arduino startup function
@@ -42,7 +44,8 @@ void setup(void)
 	taskerSetup(taskList, NTASKS);
 
 	Serial.begin(115200);				// Start the serial port.
-	Serial.println("Hello world!");		// ToDo : it'll need a "who are you?" response
+	Serial.println("dcfclock v0.2");
+	Serial.println("GPLv3 or later; see source for details");
 
 	taskerRun(taskList, NTASKS, ReadTime);
 }

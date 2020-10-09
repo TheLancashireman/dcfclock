@@ -25,26 +25,38 @@
 
 #define TICKS_PER_SECOND	Ticks(1000)
 
-// Current time and date in local time
-unsigned days;			// No. of days since 2020-01-01. 16-bit gives over 175 years
-unsigned char hours;	// No. of hours  0..23
-unsigned char mins;		// No. of minutes 0..59
-unsigned char secs;		// No of seconds 0..59
+// Current date and time in local time. Initialise to 2020-10-09
+unsigned years = 2020;		// Year number
+unsigned char leapday = 1;	// 1 if current year is a leap year
+unsigned days = 282;		// No. of days since 01.01 (0..364) (365 in leap year)
+
+unsigned char hours;		// No. of hours  0..23
+unsigned char mins;			// No. of minutes 0..59
+unsigned char secs;			// No of seconds 0..59
+
+//								J	F	M	A	M	J	J	A	S	O	N	D
+unsigned char monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+unsigned char update_time;
+
+void set_mmss(void);
+void set_hhmm(void);
+void set_DDMM(void);
+void set_YYYY(void);
 
 void TimekeeperInit(task_t *timekeeperTask)
 {
 	timekeeperTask->timer = TICKS_PER_SECOND;
 
-	setdigitnumeric(3, 0); 
-	setdigitnumeric(2, 0);
-	setdigitnumeric(1, 0);
-	setdigitsegments(0, 0);
-	display_change |= change_digits;
+	if ( leapday )
+		monthdays[1] = 29;
 }
 
 void Timekeeper(task_t *timekeeperTask, unsigned long elapsed)
 {
 	timekeeperTask->timer += TICKS_PER_SECOND;
+
+	unsigned char dmode = display_mode & 0x0f;
 
 	secs++;
 	if ( secs >= 60 )
@@ -60,38 +72,129 @@ void Timekeeper(task_t *timekeeperTask, unsigned long elapsed)
 				hours = 0;
 				days++;
 
-				// ToDo: DDMM and YYYY display modes
+				if ( days >= (365 + leapday) )
+				{
+					days = 0;
+					years++;
+					leapday = ( (years % 4) == 0 );
+					if ( leapday )
+						monthdays[1] = 29;
+					else
+						monthdays[1] = 28;
+
+					if ( dmode == mode_YYYY )
+					{
+						update_time = 1;
+					}
+				}
+
+				if ( dmode == mode_DDMM )
+				{
+					update_time = 1;
+				}
 			}
 		}
 
 		// If mode is hh:mm, update the display when the minutes change
-		if ( display_mode == mode_hhmm )
+		if ( dmode == mode_hhmm )
 		{
-			setdigitnumeric(3, mins % 10);
-			setdigitnumeric(2, mins / 10);
-			setdigitnumeric(1, hours % 10);
-			if ( hours < 10 )
-				setdigitsegments(0, 0);			// Blank when hours < 10
-			else
-				setdigitnumeric(0, hours / 10);
-			display_change |= change_digits;
+			update_time = 1;
 		}
 	}
 
 	// If mode is mm:ss, update the display when the seconds change.
-	if ( display_mode == mode_mmss )
+	if ( dmode == mode_mmss )
 	{
-		setdigitnumeric(3, secs % 10); 
-		setdigitnumeric(2, secs / 10);
-		setdigitnumeric(1, mins % 10);
-		setdigitnumeric(0, mins / 10);
-		display_change |= change_digits;
+		update_time = 1;
 	}
 
-	// If mode is any time mode, flash the colon
-	if ( display_mode == mode_mmss || display_mode == mode_hhmm )
+	if ( update_time )
 	{
-		setcolon(secs & 0x01);						// Flashing colon for time display
+		switch ( dmode )
+		{
+		case mode_YYYY:
+			set_YYYY();
+			break;
+
+		case mode_DDMM:
+			set_DDMM();
+			break;
+
+		case mode_hhmm:
+			set_hhmm();
+			break;
+
+		case mode_mmss:
+			set_mmss();
+			break;
+		}
+
+		update_time = 0;
+	}
+
+	if ( dmode == mode_hhmm || dmode == mode_mmss )
+	{
+		setcolon(secs & 0x01);				// Flashing colon for time display
 		display_change |= change_leds;
 	}
+}
+
+void set_mmss(void)
+{
+	setdigitnumeric(3, secs % 10);
+	setdigitnumeric(2, secs / 10);
+	setdigitnumeric(1, mins % 10);
+	setdigitnumeric(0, mins / 10);
+	setdigitdp(1, 0);
+	display_change |= change_digits;
+}
+
+void set_hhmm(void)
+{
+	setdigitnumeric(3, mins % 10);
+	setdigitnumeric(2, mins / 10);
+	setdigitnumeric(1, hours % 10);
+	if ( hours < 10 )
+		setdigitsegments(0, 0);			// Blank when hours < 10
+	else
+		setdigitnumeric(0, hours / 10);
+	setdigitdp(1, 0);
+	display_change |= change_digits;
+}
+
+void set_DDMM(void)
+{
+	unsigned d = days + 1;
+	unsigned char m = 0;
+	unsigned char md;
+
+	while ( m < 12 && d > monthdays[m] )
+	{
+		d -= monthdays[m];
+		m++;
+	}
+	m += 1;
+
+	setdigitnumeric(3, m % 10);
+	setdigitnumeric(2, m / 10);
+	setdigitnumeric(1, d % 10);
+	setdigitnumeric(0, d / 10);
+	setcolon(0);
+	setdigitdp(1, 1);
+	display_change |= change_leds | change_digits;
+}
+
+void set_YYYY(void)
+{
+	unsigned y = years;
+	setdigitnumeric(3, y % 10);
+	y = y / 10;
+	setdigitnumeric(2, y % 10);
+	y = y / 10;
+	setdigitnumeric(1, y % 10);
+	y = y / 10;
+	setdigitnumeric(0, y % 10);
+	setcolon(0);
+	setdigitdp(1, 0);
+	display_change |= change_leds | change_digits;
 }

@@ -1,4 +1,4 @@
-/* timekeeper.h - maintain the time and date
+/* button.h - monitor the buttons and change mode when pressed
  *
  * Part of dcfclock
  *
@@ -19,16 +19,14 @@
  *
  * dcfclock is an Arduino sketch, written for an Arduino Nano
 */
-#ifndef TIMEKEEPER_H
-#define TIMEKEEPER_H	1
+#ifndef BUTTON_H
+#define BUTTON_H	1
 
 #include "tasker.h"
 
 /* Tasker init- and run functions
 */
-void TimekeeperInit(task_t *);
-void Timekeeper(task_t *, unsigned long elapsed);
-
-extern unsigned char update_time;
+void ButtonInit(task_t *);
+void Button(task_t *, unsigned long elapsed);
 
 #endif

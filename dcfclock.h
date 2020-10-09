@@ -40,4 +40,6 @@
 
 extern unsigned ReadTime(void);
 
+#define DBG		1
+
 #endif

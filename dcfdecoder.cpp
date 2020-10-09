@@ -71,9 +71,9 @@ void DcfDecoderInit(task_t *dcfTask)
 
 void DcfDecoder(task_t *dcfTask, unsigned long elapsed)
 {
-#if 0	// DCF disabled for the moment
 	dcfTask->timer += DcfInterval;
 
+#if 0	// DCF disabled for the moment
 	switch (dcfState)
 	{
 	case DcfState_Pon:

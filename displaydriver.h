@@ -73,11 +73,17 @@
 // Check for update requests every 100 ms
 #define ddInterval	100
 
-// Display modes
-#define mode_mmss	0		// Time mode
-#define mode_hhmm	1		// Time mode
-#define mode_DDMM	2		// Date mode
-#define mode_YYYY	3		// Date mode
+// Display modes (lower 4 bits of display_mode)
+#define mode_hhmm	0x00		// Time mode
+#define mode_mmss	0x01		// Time mode
+#define mode_DDMM	0x02		// Date mode
+#define mode_YYYY	0x03		// Date mode
+#define mode_xxx	0x04		// Special mode: TEST (in normal state) and OFF (in off state)
+
+// Display states (upper 4 bits of display_mode)
+#define state_normal	0x00	//	Normal state (shows time)
+#define state_off		0x10	//	Off state (LEDs all off)
+#define state_setting	0x20	//	Time-setting state.
 
 extern unsigned char display[nDigits];
 extern unsigned char display_change;
@@ -87,6 +93,12 @@ extern const unsigned char digit_to_7seg[16];
 // The two tasker functions
 void DisplayDriverInit(task_t *);
 void DisplayDriver(task_t *, unsigned long elapsed);
+
+// setdigit() - sets all the segments (incl. dp) to specified values. Works for the extra leds too
+static inline void setdigit(int dig, unsigned char segs)
+{
+	display[dig] = segs;
+}
 
 // setdigitsegments() - sets the segments a..g to specified values (leaves dp alone)
 static inline void setdigitsegments(int dig, unsigned char segs)
