@@ -116,7 +116,6 @@ void set_mmss(void)
 	setdigitnumeric(2, secs / 10);
 	setdigitnumeric(1, mins % 10);
 	setdigitnumeric(0, mins / 10);
-	setdigitdp(1, 0);
 	display_change |= change_digits;
 }
 
@@ -129,7 +128,6 @@ void set_hhmm(void)
 		setdigitsegments(0, 0);			// Blank when hours < 10
 	else
 		setdigitnumeric(0, hours / 10);
-	setdigitdp(1, 0);
 	display_change |= change_digits;
 }
 
@@ -150,8 +148,7 @@ void set_DDMM(void)
 	setdigitnumeric(2, m / 10);
 	setdigitnumeric(1, d % 10);
 	setdigitnumeric(0, d / 10);
-	setcolon(0);
-	setdigitdp(1, 1);
+	setcolon(1);
 	display_change |= change_leds | change_digits;
 }
 
@@ -166,6 +163,5 @@ void set_YYYY(void)
 	y = y / 10;
 	setdigitnumeric(0, y % 10);
 	setcolon(0);
-	setdigitdp(1, 0);
 	display_change |= change_leds | change_digits;
 }
