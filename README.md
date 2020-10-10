@@ -5,7 +5,7 @@
 Features
 
 * Four digit display with flashing colon
-* Infra-red remote control for setting
+* Three pushbuttons for changing display mode and manually setting time
 * DCF77 synchronizaton
 
 ## The DCF77 signal.
