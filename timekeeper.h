@@ -41,6 +41,7 @@ void TimekeeperInit(task_t *);
 void Timekeeper(task_t *, unsigned long elapsed);
 
 extern void flash_colon(void);
+extern void flash_dps(char dig);
 extern void set_mmss(void);
 extern void set_hhmm(void);
 extern void set_DDMM(void);
@@ -48,6 +49,7 @@ extern void set_YYYY(void);
 
 extern void gettime(datetime_t *dt);
 extern void settime(const datetime_t *dt);
+extern unsigned char getsecs(void);
 
 extern char isleap(unsigned years);
 

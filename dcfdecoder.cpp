@@ -100,8 +100,10 @@ static void DcfInterruptHandler(void)
 	unsigned tim = ReadTime();			// As close as possible to the edge time
 	unsigned char pinstate = digitalRead(DcfInputPin);
 
+#if 0	// ToDo: decide which LED to flash for tell-tale
 	setled(seg_ldp1, pinstate==HIGH?1:0);
 	display_change |= change_leds;
+#endif
 
 	if ( dcfState == DcfState_Pon )
 	{

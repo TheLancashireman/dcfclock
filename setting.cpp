@@ -52,6 +52,7 @@ void enter_setting(void)
 // Set date and time
 void leave_setting(void)
 {
+	dps_off();
 	switch ( display_mode )
 	{
 	case (state_setting | mode_hhmm):
@@ -74,6 +75,7 @@ void leave_setting(void)
 // advance_setting() - change to next digit to set
 void advance_setting(void)
 {
+	dps_off();
 	d_index++;
 	if ( d_index > 3 )
 	{
@@ -129,6 +131,21 @@ void decrease_digit(void)
 		d[d_index] = maxd[d_index];;
 	setdigitnumeric(d_index, d[d_index]);
 	display_change |= change_digits;
+}
+
+void dps_off(void)
+{
+	setdigitdp(d_index, 0);
+	setleftdp(d_index, 0);
+	display_change |= change_digits | change_leds;
+}
+
+void flash_dps(void)
+{
+	unsigned char v = getsecs() & 0x01;
+	setdigitdp(d_index, v);
+	setleftdp(d_index, v);
+	display_change |= change_digits | change_leds;
 }
 
 static void decode_time(void)

@@ -22,10 +22,12 @@
 #ifndef SETTING_H
 #define SETTING_H		1
 
-void enter_setting(void);
-void leave_setting(void);
-void advance_setting(void);
-void increase_digit(void);
-void decrease_digit(void);
+extern void enter_setting(void);
+extern void leave_setting(void);
+extern void advance_setting(void);
+extern void increase_digit(void);
+extern void decrease_digit(void);
+extern void flash_dps(void);
+extern void dps_off(void);
 
 #endif

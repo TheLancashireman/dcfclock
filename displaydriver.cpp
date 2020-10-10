@@ -25,6 +25,7 @@
 #include "tasker.h"
 #include "displaydriver.h"
 #include "timekeeper.h"
+#include "setting.h"
 
 // Pin assginments
 #define SpiClk			13			// SPI clock pin - unfortunately same as on-board LED
@@ -39,6 +40,19 @@
 unsigned char display[nDigits];
 unsigned char display_change;
 unsigned char display_mode;
+
+const unsigned char digit_to_7seg[16] =
+{
+	chargen_0, chargen_1, chargen_2, chargen_3,
+	chargen_4, chargen_5, chargen_6, chargen_7,
+	chargen_8, chargen_9, chargen_a, chargen_b,
+	chargen_c, chargen_d, chargen_e, chargen_f,
+};
+
+const unsigned char left_dp[4] =
+{
+	seg_ldp1, seg_ldp2, seg_ldp3, seg_ldp4
+};
 
 void DisplayDriverInit(task_t *displayDriveTask)
 {
@@ -85,8 +99,10 @@ void DisplayDriver(task_t *displayDriveTask, unsigned long elapsed)
 {
 	displayDriveTask->timer += ddInterval;
 
-	if ( (display_mode & 0xf0) < state_setting )	// Display control while setting time is done by button handler.
+	// Digit control while setting time is done by button handler.
+	if ( (display_mode & 0xf0) < state_setting )
 	{
+		// In normal or off state, show the time/date depending on the mode
 		unsigned char dmode = display_mode & 0x0f;
 
 		switch ( dmode )
@@ -112,10 +128,23 @@ void DisplayDriver(task_t *displayDriveTask, unsigned long elapsed)
 				set_mmss();
 			flash_colon();
 			break;
+
+		default:
+			// In mode xxx (test or blank), do nothing
+			break;
 		}
 	}
-	else if ( display_mode == (state_setting | mode_hhmm) )
-		flash_colon();
+	else
+	{
+		// In setting state all that's done here is some regular flashing of dots and the colon.
+		// Flash the colon when setting time.
+		if ( display_mode == (state_setting | mode_hhmm) )
+			flash_colon();
+
+		// Flash the active digit.
+		flash_dps();
+	}
+		
 
 	update_time = 0;
 

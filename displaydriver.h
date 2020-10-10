@@ -40,10 +40,10 @@
 #define seg_g		0x80
 
 // "Digit" 4
-#define seg_ldp4	0x01	// Left-hand decimal point, 1st digit
-#define seg_ldp3	0x02	// Left-hand decimal point, 2nd digit
-#define seg_ldp2	0x04	// Left-hand decimal point, 3rd digit
-#define seg_ldp1	0x08	// Left-hand decimal point, 4th digit
+#define seg_ldp4	0x01	// Left-hand decimal point, 4th digit
+#define seg_ldp3	0x02	// Left-hand decimal point, 3rd digit
+#define seg_ldp2	0x04	// Left-hand decimal point, 2nd digit
+#define seg_ldp1	0x08	// Left-hand decimal point, 1st digit
 #define	seg_col_u	0x10	// Colon: upper LED
 #define seg_col_l	0x20	// Colon: lower LED
 #define seg_aux1	0x40	// Aux1 LED (purpose TBD)
@@ -92,6 +92,7 @@ extern unsigned char display_change;
 extern unsigned char display_mode;
 extern unsigned char update_time;
 extern const unsigned char digit_to_7seg[16];
+extern const unsigned char left_dp[4];
 
 // The two tasker functions
 void DisplayDriverInit(task_t *);
@@ -118,23 +119,19 @@ static inline void setdigitdp(int dig, unsigned char dp)
 		display[dig] &= ~seg_dp;
 }
 
+// setleftdp() - sets the (left-hand) dp to specified value
+static inline void setleftdp(int dig, unsigned char dp)
+{
+	if ( dp )
+		display[4] |= left_dp[dig];
+	else
+		display[4] &= ~left_dp[dig];
+}
+
 // setdigitnumeric() - sets the segments a..g to a specified hexadecimal digit (leaves dp alone)
 static inline void setdigitnumeric(int dig, unsigned char num)
 {
-	switch (num)
-	{
-	case 0:	setdigitsegments(dig, chargen_0);	break;
-	case 1:	setdigitsegments(dig, chargen_1);	break;
-	case 2:	setdigitsegments(dig, chargen_2);	break;
-	case 3:	setdigitsegments(dig, chargen_3);	break;
-	case 4:	setdigitsegments(dig, chargen_4);	break;
-	case 5:	setdigitsegments(dig, chargen_5);	break;
-	case 6:	setdigitsegments(dig, chargen_6);	break;
-	case 7:	setdigitsegments(dig, chargen_7);	break;
-	case 8:	setdigitsegments(dig, chargen_8);	break;
-	case 9:	setdigitsegments(dig, chargen_9);	break;
-	default:	break;	// Nothing				
-	}
+	setdigitsegments(dig, digit_to_7seg[num]);
 }
 
 // setcolon() - sets the colon LEDs on or off

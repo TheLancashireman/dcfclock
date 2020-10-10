@@ -167,6 +167,11 @@ void set_YYYY(void)
 	display_change |= change_leds | change_digits;
 }
 
+unsigned char getsecs(void)
+{
+	return secs;
+}
+
 void gettime(datetime_t *dt)
 {
 	dt->years = years;
