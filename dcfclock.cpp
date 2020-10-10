@@ -37,6 +37,11 @@ task_t taskList[NTASKS] =
 	{	ButtonInit,			Button,			0	}
 };
 
+// TCNT1 modes
+#define FREQ_TCCR1B_EXT_RISING	0x07
+#define FREQ_TCCR1B_EXT_FALLING	0x06
+
+
 // setup() - standard Arduino startup function
 // Everything happens in here
 void setup(void)
@@ -46,6 +51,18 @@ void setup(void)
 	Serial.begin(115200);				// Start the serial port.
 	Serial.println("dcfclock v0.2");
 	Serial.println("GPLv3 or later; see source for details");
+
+	// Clear all the settings of timer 1
+	TCCR1A = 0;
+	TCCR1B = 0;
+
+	// Select external input as frequency source.
+    // 7 for rising edge, 6 for falling edge.
+    // All waveform generation functions are disabled (also in TCCR1A).
+    TCCR1B = FREQ_TCCR1B_EXT_RISING;
+
+    // Clear the counter
+    TCNT1 = 0;
 
 	taskerRun(taskList, NTASKS, ReadTime);
 }
@@ -61,7 +78,6 @@ unsigned ReadTime(void)
 #if TimeSource == Time_millis
 	return (unsigned)millis();
 #else
-#error "External time not supported yet"
-	return 0;
+	return (unsigned)TCNT1;
 #endif
 }

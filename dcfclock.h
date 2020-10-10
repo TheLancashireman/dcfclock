@@ -28,7 +28,7 @@
 #define Time_50Hz		1		// Mains frequency
 #define Time_100Hz		2		// Mains frequency (full-wave rectified)
 
-#define TimeSource		Time_millis
+#define TimeSource		Time_50Hz
 
 #if TimeSource == Time_millis
 #define Ticks(x)	((x))
