@@ -85,31 +85,34 @@ void DisplayDriver(task_t *displayDriveTask, unsigned long elapsed)
 {
 	displayDriveTask->timer += ddInterval;
 
-	unsigned char dmode = display_mode & 0x0f;
-
-	switch ( dmode )
+	if ( (display_mode & 0xf0) < state_setting )	// Disply control while setting time is done by button handler.
 	{
-	case mode_YYYY:
-		if ( update_time )
-			set_YYYY();
-		break;
+		unsigned char dmode = display_mode & 0x0f;
 
-	case mode_DDMM:
-		if ( update_time )
-			set_DDMM();
-		break;
+		switch ( dmode )
+		{
+		case mode_YYYY:
+			if ( update_time )
+				set_YYYY();
+			break;
 
-	case mode_hhmm:
-		if ( update_time )
-			set_hhmm();
-		flash_colon();
-		break;
+		case mode_DDMM:
+			if ( update_time )
+				set_DDMM();
+			break;
 
-	case mode_mmss:
-		if ( update_time )
-			set_mmss();
-		flash_colon();
-		break;
+		case mode_hhmm:
+			if ( update_time )
+				set_hhmm();
+			flash_colon();
+			break;
+
+		case mode_mmss:
+			if ( update_time )
+				set_mmss();
+			flash_colon();
+			break;
+		}
 	}
 
 	update_time = 0;

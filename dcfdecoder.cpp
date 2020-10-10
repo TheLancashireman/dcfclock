@@ -232,8 +232,7 @@ void DcfSample(task_t *dcfTask, unsigned long elapsed)
 			SetDigitBit(2, 7, 1);
 			SetDigitBit(3, 7, 0);
 		}
-		else
-		if ( dcfWidth > dcfGapThrsh )
+		else if ( dcfWidth > dcfGapThrsh )
 		{
 			// No leading edge seen --> it's a gap.
 			// Leading edge of next pulse is start of a new minute.
@@ -242,8 +241,7 @@ void DcfSample(task_t *dcfTask, unsigned long elapsed)
 			dcfCalculateTime();
 		}
 	}
-	else
-	if ( dcfState == 1 )
+	else if ( dcfState == 1 )
 	{
 		// Sample the state of the DCF input.
 		if ( digitalRead(DcfInputPin) == dcfState0 && dcfWidth > dcfDebounce )
@@ -261,8 +259,7 @@ void DcfSample(task_t *dcfTask, unsigned long elapsed)
 			SetDigitBit(3, 7, 1);
 		}
 	}
-	else
-	if ( dcfState == 2 )
+	else if ( dcfState == 2 )
 	{
 		// Waiting for start of minute.
 		if ( digitalRead(DcfInputPin) == dcfState1 )
@@ -365,8 +362,7 @@ void dcfCalculateTime(void)
 
 		}
 	}
-	else
-	if ( dcfBitCount < 59 )
+	else if ( dcfBitCount < 59 )
 	{
 		Serial.println("-");
 	}

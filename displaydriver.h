@@ -24,6 +24,8 @@
 #ifndef DISPLAYDRIVER_H
 #define DISPLAYDRIVER_H		1
 
+#include "tasker.h"
+
 // 5 digits: 4 real digits plus a set of assorted LEDs
 #define nDigits		5
 
@@ -151,6 +153,28 @@ static inline void setled(unsigned char led, int on)
 		display[4] |= led;
 	else
 		display[4] &= ~led;
+}
+
+// blank() - turn all LEDs off
+static inline void blank(void)
+{
+	setdigit(0, 0x00);
+	setdigit(1, 0x00);
+	setdigit(2, 0x00);
+	setdigit(3, 0x00);
+	setdigit(4, 0x00);
+	display_change |= change_digits | change_leds;
+}
+
+// allon() - turn all LEDs on
+static inline void allon(void)
+{
+	setdigit(0, 0xff);
+	setdigit(1, 0xff);
+	setdigit(2, 0xff);
+	setdigit(3, 0xff);
+	setdigit(4, 0xff);
+	display_change |= change_digits | change_leds;
 }
 
 #endif
