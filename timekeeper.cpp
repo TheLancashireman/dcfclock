@@ -25,10 +25,10 @@
 
 #define TICKS_PER_SECOND	Ticks(1000)
 
-// Current date and time in local time. Initialise to 2020-10-09
+// Current date and time in local time. Initialise to 2020-10-10
 unsigned years = 2020;		// Year number
-unsigned char leapday = 1;	// 1 if current year is a leap year
-unsigned days = 282;		// No. of days since 01.01 (0..364) (365 in leap year)
+unsigned days = 283;		// No. of days since 01.01 (0..364) (365 in leap year)
+char leapday;				// 1 if current year is a leap year
 
 unsigned char hours;		// No. of hours  0..23
 unsigned char mins;			// No. of minutes 0..59
@@ -43,6 +43,7 @@ void TimekeeperInit(task_t *timekeeperTask)
 {
 	timekeeperTask->timer = TICKS_PER_SECOND;
 
+	leapday = isleap(years);
 	if ( leapday )
 		monthdays[1] = 29;
 }
@@ -71,7 +72,7 @@ void Timekeeper(task_t *timekeeperTask, unsigned long elapsed)
 				{
 					days = 0;
 					years++;
-					leapday = ( (years % 4) == 0 );
+					leapday = isleap(years);
 					if ( leapday )
 						monthdays[1] = 29;
 					else
@@ -164,4 +165,39 @@ void set_YYYY(void)
 	setdigitnumeric(0, y % 10);
 	setcolon(0);
 	display_change |= change_leds | change_digits;
+}
+
+void gettime(datetime_t *dt)
+{
+	dt->years = years;
+	dt->days = days;
+	dt->hours = hours;
+	dt->mins = mins;
+}
+
+void settime(const datetime_t *dt)
+{
+	years = dt->years;
+	days = dt->days;
+	hours = dt->hours;
+	mins = dt->mins;
+	secs = 0;
+	leapday = isleap(years);
+
+	// ToDo: synchronize the task interval
+}
+
+char isleap(unsigned y)
+{
+	if ( (y % 4) == 0 )
+	{
+		if ( (y % 100) == 0 )
+		{
+			if ( (y % 400) == 0 )
+				return 1;
+			return 0;
+		}
+		return 1;
+	}
+	return 0;
 }

@@ -24,6 +24,17 @@
 
 #include "tasker.h"
 
+// Structure parameter for gettime() and settime()
+typedef struct
+{
+	unsigned years;			// Year number
+	unsigned days;			// No. of days since 01.01 (0..364) (365 in leap year)
+	unsigned char hours;	// No. of hours  0..23
+	unsigned char mins;		// No. of minutes 0..59
+} datetime_t;
+
+extern unsigned char monthdays[12];
+
 /* Tasker init- and run functions
 */
 void TimekeeperInit(task_t *);
@@ -35,5 +46,9 @@ extern void set_hhmm(void);
 extern void set_DDMM(void);
 extern void set_YYYY(void);
 
+extern void gettime(datetime_t *dt);
+extern void settime(const datetime_t *dt);
+
+extern char isleap(unsigned years);
 
 #endif

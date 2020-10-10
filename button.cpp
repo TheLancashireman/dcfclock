@@ -129,7 +129,7 @@ void Button(task_t *buttonTask, unsigned long elapsed)
 			else if ( mode_btn_prev == RELEASED )
 			{
 				// Mode button newly pressed on its own
-				// Advannce to next mode
+				// Advannce to next mode or digit
 				if ( (display_mode & 0xf0) == state_setting )
 				{
 					// Advance to next digit in setting mode

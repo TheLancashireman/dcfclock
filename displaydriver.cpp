@@ -85,7 +85,7 @@ void DisplayDriver(task_t *displayDriveTask, unsigned long elapsed)
 {
 	displayDriveTask->timer += ddInterval;
 
-	if ( (display_mode & 0xf0) < state_setting )	// Disply control while setting time is done by button handler.
+	if ( (display_mode & 0xf0) < state_setting )	// Display control while setting time is done by button handler.
 	{
 		unsigned char dmode = display_mode & 0x0f;
 
@@ -114,6 +114,8 @@ void DisplayDriver(task_t *displayDriveTask, unsigned long elapsed)
 			break;
 		}
 	}
+	else if ( display_mode == (state_setting | mode_hhmm) )
+		flash_colon();
 
 	update_time = 0;
 
