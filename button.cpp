@@ -28,8 +28,8 @@
 #define SCAN_INTERVAL	Ticks(20)
 
 #define OneSecond		Ticks(1000)/SCAN_INTERVAL
-#define NORMAL_TIMEOUT	(OneSecond * 10)
-#define SETTING_TIMEOUT	(OneSecond * 70)
+#define NORMAL_TIMEOUT	(OneSecond * 5)
+#define SETTING_TIMEOUT	(OneSecond * 10)
 
 #define ModeBtn			8
 #define UpBtn			6
@@ -188,7 +188,8 @@ void check_timeout(void)
 				setdigit(4, 0x00);
 			}
 
-			if ( (display_mode & 0xf0) == state_off )
+			unsigned char state = display_mode & 0xf0;
+			if ( state == state_off )
 			{
 				DBG_PRINT("Revert to off state");
 				display_mode = state_off | mode_xxx;
@@ -196,6 +197,8 @@ void check_timeout(void)
 			else
 			{
 				DBG_PRINT("Revert to normal state");
+				if ( state == state_setting )
+					dps_off();
 				display_mode = state_normal | mode_hhmm;
 			}
 			display_change |= change_digits | change_leds;
@@ -225,6 +228,8 @@ void toggle_state(void)
 	}
 	else
 	{
+		if ( state == state_setting )
+			dps_off();
 		DBG_PRINT("Switch to normal state");
 		display_mode = state_normal | mode_hhmm;
 		update_time = 1;
