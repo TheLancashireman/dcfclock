@@ -8,6 +8,8 @@ Features
 * Three pushbuttons for changing display mode and manually setting time
 * DCF77 synchronizaton
 
+For a circuit description schematica and photos, go to https://wiki.thelancashireman.org/index.php?title=Digital_clock
+
 ## The DCF77 signal.
 
 See https://en.wikipedia.org/wiki/DCF77 for details
