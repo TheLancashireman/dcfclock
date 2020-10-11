@@ -25,9 +25,9 @@
 
 #define TICKS_PER_SECOND	Ticks(1000)
 
-// Current date and time in local time. Initialise to 2020-10-10
+// Current date and time in local time. Initialise to 2020-10-12
 unsigned years = 2020;		// Year number
-unsigned days = 283;		// No. of days since 01.01 (0..364) (365 in leap year)
+unsigned days = 285;		// No. of days since 01.01 (0..364) (0..365 in leap year)
 char leapday;				// 1 if current year is a leap year
 
 unsigned char hours;		// No. of hours  0..23
@@ -39,8 +39,12 @@ unsigned char monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 
 unsigned char update_time;
 
+task_t *tktask;
+
 void TimekeeperInit(task_t *timekeeperTask)
 {
+	tktask = timekeeperTask;		// Remember this for use in settime()
+
 	timekeeperTask->timer = TICKS_PER_SECOND;
 
 	leapday = isleap(years);
@@ -189,7 +193,9 @@ void settime(const datetime_t *dt)
 	secs = 0;
 	leapday = isleap(years);
 
-	// ToDo: synchronize the task interval
+	// First second tick occurs one second from now (off by up to 1 tick of ReadTime()).
+	tktask->timer = TICKS_PER_SECOND;
+
 }
 
 char isleap(unsigned y)
